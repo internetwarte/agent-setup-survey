@@ -156,6 +156,93 @@ def linux_detect_vm() -> Tuple[Dict[str, Any], Dict[str, bool]]:
     }
     return {"is_vm": is_vm, "type": vm_type}, signals
 
+def macos_detect_container() -> Tuple[Dict[str, Any], Dict[str, bool]]:
+    """
+    macOS generally doesn't run Linux containers natively; most "containers on macOS"
+    are actually Linux containers inside a Linux VM. Still, handle edge-cases safely:
+    - sentinel files if present
+    - cgroup hints if /proc happens to exist (some sandboxes / unusual setups)
+    - very conservative env hints
+    """
+    container_type = "none"
+
+    # 1) Sentinel files (rare on macOS host, but harmless to check)
+    has_dockerenv = file_exists("/.dockerenv")
+    has_containerenv = file_exists("/run/.containerenv")
+
+    if has_containerenv:
+        container_type = "podman"
+    elif has_dockerenv:
+        container_type = "docker"
+
+    # 2) cgroup hints (normally absent on macOS; only used if files exist)
+    cgroup_hints = False
+    cgroup1 = read_text("/proc/1/cgroup")
+    cgroup_self = read_text("/proc/self/cgroup")
+    if cgroup1 or cgroup_self:
+        cg = ((cgroup1 or "") + "\n" + (cgroup_self or "")).lower()
+        cgroup_hints = bool(re.search(r"(docker|kubepods|containerd|podman|lxc|libpod)", cg))
+        if container_type == "none" and cgroup_hints:
+            container_type = "hint"
+
+    # 3) Conservative env hint (avoid collecting env values; only check presence)
+    # Some environments set a generic "container" marker.
+    has_container_envvar = bool(os.environ.get("container"))
+    if container_type == "none" and has_container_envvar:
+        container_type = "hint"
+
+    is_container = container_type != "none"
+    signals = {
+        "has_dockerenv": has_dockerenv,
+        "has_containerenv": has_containerenv,
+        "cgroup_hints": cgroup_hints,
+    }
+    return {"is_container": is_container, "type": container_type}, signals
+
+
+def macos_detect_vm() -> Tuple[Dict[str, Any], Dict[str, bool]]:
+    """
+    macOS VM detection using:
+      - sysctl CPU feature flags (Intel: VMM)
+      - ioreg platform strings (vendor/product hints), but only keep boolean
+    Raw strings are never stored in the output (privacy rule).
+    """
+    vm_type = "none"
+
+    # 1) sysctl: hypervisor-related CPU flags (Intel Macs often expose "VMM")
+    cpuinfo_hypervisor_flag = False
+    for key in ("machdep.cpu.features", "machdep.cpu.leaf7_features"):
+        rc, out, _err = run_cmd(["sysctl", "-n", key])
+        if rc == 0 and out:
+            # Only compute boolean; discard raw output
+            if "vmm" in out.lower().split():
+                cpuinfo_hypervisor_flag = True
+                break
+
+    if cpuinfo_hypervisor_flag:
+        vm_type = "hint"
+
+    # 2) ioreg: look for common VM vendor/product keywords (boolean only)
+    dmi_vm_hints = False
+    rc, out, _err = run_cmd(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"], timeout=3.0)
+    if rc == 0 and out:
+        blob = out.lower()
+        dmi_vm_hints = bool(
+            re.search(
+                r"(vmware|virtualbox|qemu|xen|parallels|bochs|hyper-v|microsoft corporation|kvm)",
+                blob,
+            )
+        )
+        # Raw ioreg output intentionally discarded after boolean extraction.
+        if vm_type == "none" and dmi_vm_hints:
+            vm_type = "hint"
+
+    is_vm = vm_type != "none"
+    signals = {
+        "dmi_vm_hints": dmi_vm_hints,
+        "cpuinfo_hypervisor_flag": cpuinfo_hypervisor_flag,
+    }
+    return {"is_vm": is_vm, "type": vm_type}, signals
 
 def windows_powershell_json(ps_script: str, timeout: float = 4.0) -> Tuple[bool, Any, str]:
     cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
@@ -245,6 +332,11 @@ def main() -> int:
     elif os_name == "windows":
         container_result, c_signals = windows_detect_container()
         vm_result, v_signals = windows_detect_vm()
+        signals.update(c_signals)
+        signals.update(v_signals)
+    elif os_name == "macos": 
+        container_result, c_signals = macos_detect_container()
+        vm_result, v_signals = macos_detect_vm()
         signals.update(c_signals)
         signals.update(v_signals)
     else:
