@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-environment-survey.py — privacy-respecting environment detection for AI agent research.
+environment-survey.py; conducts privacy-respecting environment detection for AI agent research.
 
 Outputs a minimal JSON object to stdout. Designed to be reviewed by the user
 before any data is sent anywhere.
@@ -11,17 +11,6 @@ What this script collects (and why):
   - container       : whether a container runtime was detected, and which type
   - vm              : whether a hypervisor was detected, and which type
   - signals         : individual boolean indicators used to reach the above conclusions
-
-What this script does NOT collect:
-  - Hostname, username, or any personally identifying strings
-  - Kernel version or full platform version strings
-  - Python version
-  - Raw DMI/BIOS strings (only a boolean "contains VM keywords" is kept)
-  - Raw stdout/stderr from detection tools
-  - Process names from /proc/1/sched
-
-This file is the version distributed to participants. The full reference version
-(env_detect.py) is kept locally for debugging only.
 """
 
 from __future__ import annotations
