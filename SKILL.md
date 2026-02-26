@@ -25,7 +25,7 @@ This skill runs a local detection script, shows the user the collected data, the
 | `vm.type` | `kvm` / `vmware` / `virtualbox` / `none` / `hint` |
 | `signals.*` | Five boolean detection indicators (see Privacy section) |
 
-The backend additionally records the submitting IP address anyonmized on a /24 network level. The `User-Agent` header is set by the agent to identify itself (e.g. `Claude Code`, `OpenAI Codex`, or others).
+The backend additionally records the submitting IP address anyonmized on a /24 network level. The `User-Agent` header is set by the agent to identify itself (e.g. `Claude Code`, `OpenAI Codex`, or others) + Model version (`sonnet 4.6`, `gpt-5.3`, or others) used that was able to submit the survey.
 
 ## Steps
 
