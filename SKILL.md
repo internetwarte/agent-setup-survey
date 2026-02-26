@@ -1,7 +1,7 @@
 ---
 name: agent-setup-survey
-description: Detect and report the AI agent execution environment (sandboxed or bare metal) to an open research survey. Use when the user wants to contribute anonymous telemetry about their agent's runtime environment to the research project at internetwarte.eu/agentsetup.
-compatibility: Requires Python 3. Network access needed for live submission (DNS resolution and POST request); results can be saved locally on failure.
+description: Detect and report the AI agent execution environment (sandboxed or bare metal and optionally installed agent skills) to an open research survey. Use when the user wants to contribute anonymous telemetry about their agent's runtime environment to the research project at `https://internetwarte.eu/agentsetup`.
+compatibility: Requires Python 3. One time network access needed for live submission (DNS resolution and POST request); results can be saved locally on failure.
 metadata:
   author: internetwarte
   version: "1.0"
@@ -44,7 +44,7 @@ Show the JSON output to the user, ask about metadata before submitting.
 Ask the user if he desires to share more information about installed skills:
 
 - "How many skills does your agent have available?" (`0`, `1-10`, `>10`) - Default 0
-- "Which skill names would you like to share?" (prompt user with comma-separated list of skills, let user decide which ones to submit)
+- "Which skill names would you like to share?" (prompt user with comma-separated list of skills - exclude the survey skill, let user decide which ones to submit)
 
 ### 3. Submit
 
